@@ -1,0 +1,67 @@
+***************
+*** 1,19 ****
+  
+  from graphication.scales import BaseScale
+  import time
+  import datetime
+  
+  
+  def d_to_timestamp(d):
+  	if isinstance(d, (int, float)):
+  		return d
+- 	return time.mktime(d.timetuple()[:8]+(0,))
+  
+  def timestamp_to_d(t):
+  	if isinstance(t, (datetime.datetime, datetime.date)):
+  		return t
+  	return datetime.datetime.fromtimestamp(t)
+  
+  class DateScale(BaseScale):
+  	
+  	def __init__(self, min, max, step=None, padding=None, minor_step=None, highlight_weekends=False):
+--- 1,45 ----
+  
+  from graphication.scales import BaseScale
+  import time
++ import calendar
+  import datetime
+  
+  
++ class UTC(datetime.tzinfo):
++ 	"UTC timezone, used when turning datetimes into unixtime"
++ 	def utcoffset(self, dt):
++ 		return datetime.timedelta(0)
++ 	def tzname(self, dt):
++ 		return "UTC"
++ 	def dst(self, dt):
++ 		return datetime.timedelta(0)
++ utc = UTC()
++ 
++ 
+  def d_to_timestamp(d):
++ 	"Turns a date/datetime into utc unixtime, or does nothing if already there"
+  	if isinstance(d, (int, float)):
+  		return d
++ 
++ 	if isinstance(d, datetime.datetime) and d.tzinfo:
++ 		# Convert to UTC if it isn't already there
++ 		if d.utcoffset():
++ 			d = d.astimezone(utc)
++ 
++ 		# We're now in utc, so turn into unixtime
++ 		# Warning - time.mktime uses localtime! Use calendar.timegm instead
++ 		return calendar.timegm( d.timetuple()[:8]+(0,) )
++ 	else:
++ 		# No timezone information given
++ 		# Assume they're just working in localtime
++ 		return time.mktime(d.timetuple()[:8]+(0,))
+  
+  def timestamp_to_d(t):
+  	if isinstance(t, (datetime.datetime, datetime.date)):
+  		return t
+  	return datetime.datetime.fromtimestamp(t)
+  
++ 
+  class DateScale(BaseScale):
+  	
+  	def __init__(self, min, max, step=None, padding=None, minor_step=None, highlight_weekends=False):
